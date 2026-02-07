@@ -1,0 +1,193 @@
+# ==============================================================================
+# ODL Project .gitignore
+# Supports: C / C++ / CMake / Python / Embedded (ESP32, STM32, Raspberry Pi)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# General
+# ------------------------------------------------------------------------------
+*.swp
+*.swo
+*.tmp
+*.log
+*.bak
+*.old
+*.orig
+*.rej
+
+# ------------------------------------------------------------------------------
+# Build artifacts
+# ------------------------------------------------------------------------------
+/build/
+/build-*/
+/out/
+/bin/
+/obj/
+/lib/
+/dist/
+/CMakeFiles/
+/CMakeCache.txt
+/Testing/
+/CTestTestfile.cmake
+/cmake_install.cmake
+/Makefile
+/install_manifest.txt
+/compile_commands.json
+
+# Target-specific build folders
+/build_mock/
+/build_qemu/
+/build_rpi/
+/build_esp32/
+/build_stm32/
+
+# ------------------------------------------------------------------------------
+# Compiled object and binary files
+# ------------------------------------------------------------------------------
+*.o
+*.obj
+*.lo
+*.la
+*.a
+*.so
+*.so.*
+*.dll
+*.dylib
+*.exe
+*.out
+*.elf
+*.map
+*.hex
+*.bin
+*.lst
+*.d
+*.dump
+
+# ------------------------------------------------------------------------------
+# CMake user-specific
+# ------------------------------------------------------------------------------
+CMakeUserPresets.json
+CMakeSettings.json
+
+# ------------------------------------------------------------------------------
+# IDEs and editors
+# ------------------------------------------------------------------------------
+# VSCode
+.vscode/
+# CLion / JetBrains
+.idea/
+cmake-build-*/
+# Eclipse
+.project
+.cproject
+.settings/
+# Code::Blocks
+*.cbp
+*.depend
+# Visual Studio
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.user
+*.vs/
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+*.xcuserstate
+
+# ------------------------------------------------------------------------------
+# Python
+# ------------------------------------------------------------------------------
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+env/
+venv/
+ENV/
+.venv/
+build/
+build-*/
+downloads/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+*.pyo
+.pytest_cache/
+hypothesis/
+.pyre/
+.mypy_cache/
+.dmypy.json
+.dmypy/
+ruff_cache/
+__pypackages__/
+
+# ------------------------------------------------------------------------------
+# OS-specific junk
+# ------------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+# Linux
+*~
+
+# ------------------------------------------------------------------------------
+# Toolchains / SDKs
+# ------------------------------------------------------------------------------
+# PlatformIO
+.pio/
+# ESP-IDF
+sdkconfig
+sdkconfig.old
+build/
+# STM32Cube
+*.launch
+*.ioc
+
+# ------------------------------------------------------------------------------
+# Logs / temp / local configs
+# ------------------------------------------------------------------------------
+*.log
+*.tmp
+*.cache/
+*.local/
+.env
+.env.*
