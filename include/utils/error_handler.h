@@ -1,33 +1,66 @@
-#include <stddef.h>
-
 #pragma once
+/*----------------------------------------------------------
+ * panic / STATUS_ERROR-handling utilities (Linux kernel style)
+ *----------------------------------------------------------*/
 
-#define __print_error_condition(_condition)\
-printf("Error at %s:%d, in function %s\r\n", __FILE__, __LINE__, __func__);\
-printf("Error type: %s\r\n",#_condition)
+#include <stdio.h>
+#include <stdlib.h>
+#include "logging.h"
 
-#define __return_error_if(_condition)\
-if(_condition){\
-    __print_error_condition(_condition);\
-    return STATUS_ERROR;\
+/*----------------------------------------------------------
+ * STATUS_ERROR codes
+ *----------------------------------------------------------*/
+typedef enum {
+    STATUS_OK = 0,
+    STATUS_ERROR = 1,
+    STATUS_TIMEOUT = 2,
+    STAUTS_BUSY = 3,
+} status_e;
+
+#define PANIC_ACT exit(EXIT_FAILURE)
+
+/*----------------------------------------------------------
+ * Panic implementation (never returns)
+ *----------------------------------------------------------*/
+__attribute__((noreturn))
+static inline void panic_impl()
+{
+    log_println("Panic occurred! Halting execution.");
+    PANIC_ACT;
 }
 
-#define __return_null_if(_condition)\
-if(_condition){\
-    __print_error_condition(_condition);\
-    return NULL;\
-}
+/*----------------------------------------------------------
+ * Macros (statement-safe, kernel-style naming)
+ *----------------------------------------------------------*/
+#define panic_if(cond)                                     \
+    do {                                                   \
+        if (cond){                                         \
+            log_error("TAG",#cond);\
+            panic_impl();\
+        }                                  \
+    } while (0)
 
-#define __goto_cleanup_if(_condition)\
-if(_condition){\
-   __print_error_condition(_condition);\
-    goto __cleanup;\
-}
+#define return_error_if(cond)                              \
+    do {                                                   \
+        if (cond) {                                       \
+            log_error("TAG",#cond);         \
+            return STATUS_ERROR;                           \
+        }                                                  \
+    } while (0)
 
+#define return_null_if(cond)                               \
+    do {                                                   \
+        if (cond) {                                       \
+            log_error("TAG",#cond);         \
+            return NULL;                                   \
+        }                                                  \
+    } while (0)
 
-
-typedef enum{
-    STATUS_ERROR = -1,
-    STATUS_OK = 0
-}error_e;
-
+#define goto_cleanup_if(cond)                              \
+    do {                                                   \
+        if (cond) {                                       \
+           log_error("TAG",#cond);         \
+            printf("goto cleanup to free allocated memory.\r\n");             \
+            goto cleanup;                                 \
+        }                                                  \
+    } while (0)
