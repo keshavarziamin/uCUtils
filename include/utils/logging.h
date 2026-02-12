@@ -14,7 +14,10 @@ extern "C" {
 #define LOG_LEVEL_TRACE 3
 
 #ifndef LOG_LEVEL
-#define LOG_LEVEL LOG_LEVEL_ERROR
+#error ""
+#endif
+#ifndef LOG_MODULE_TAG
+#error ""
 #endif
 
 /* low-level print helpers */
@@ -23,6 +26,13 @@ extern "C" {
     do {                      \
         printf(__VA_ARGS__);  \
         printf("\n");         \
+    } while (0)
+
+#define println(...)         \
+    do                       \
+    {                        \
+        printf(__VA_ARGS__); \
+        printf("\n");        \
     } while (0)
 
 /* common log backend */
@@ -49,8 +59,14 @@ extern "C" {
 #if LOG_LEVEL >= LOG_LEVEL_INFO
 #define log_info(tag, fmt, ...) \
     __log_print(tag, "INFO", fmt, ##__VA_ARGS__)
+#define log_success(tag, fmt, ...) \
+    __log_print(tag, "SUCCESS", fmt, ##__VA_ARGS__)
+#define log_fail(tag, fmt, ...) \
+    __log_print(tag, "FAIL", fmt, ##__VA_ARGS__)
 #else
 #define log_info(tag, fmt, ...)
+#define log_success(tag, fmt, ...)
+#define log_fail(tag, fmt, ...)
 #endif
 
 #if LOG_LEVEL >= LOG_LEVEL_DEBUG
