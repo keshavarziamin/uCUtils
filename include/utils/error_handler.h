@@ -17,8 +17,9 @@
  */
 
 #include <stdlib.h>
-#include <errno.h>
+#include <stdint.h>
 #include "logging.h"
+
 
 /* ==========================================================
  *  Return status abstraction
@@ -31,11 +32,17 @@
  *      0 == success aligns with POSIX / Linux convention.
  * ==========================================================
  */
-typedef enum
-{
-    RETURN_SUCCESS = 0,
-    RETURN_FAIL = 1
-} return_e;
+typedef enum {
+    STATUS_SUCCESS = 0, // none error
+    STATUS_FAILURE = 1,
+} status_e;
+
+typedef struct {
+    int32_t status: 2;
+    int32_t value: 30;
+}return_mut;
+
+typedef return_mut const return_t;
 
 /* ==========================================================
  *  Standardized return helpers
@@ -47,25 +54,39 @@ typedef enum
  * ==========================================================
  */
 
-#define return_fail()                               \
+
+#define return_(_status,_value)                               \
+    do                                              \
+    {                                               \
+        log_debug("%s: return %s with value = %d",__func__,#_status,_value); \
+        return_t ret = {\
+            .status = _status,\
+            .value = _value\
+        };\
+        return ret;                         \
+    } while (0)
+
+#define return_failure(_return_value)                               \
     do                                              \
     {                                               \
         log_fail("%s: execution failed", __func__); \
-        return RETURN_FAIL;                         \
+        return_(STATUS_FAILURE,_return_value);                      \
     } while (0)
 
 #define return_success()                                     \
     do                                                       \
     {                                                        \
         log_success("%s: completed successfully", __func__); \
-        return RETURN_SUCCESS;                               \
+        return_(STATUS_SUCCESS,0);                      \
     } while (0)
 
-/*
- * Helper condition macro.
- * Requires a local variable named `ret` of type return_e.
- */
-#define if_return_fail(ret) if ((ret) == RETURN_FAIL)
+#define return_value(_value)                                     \
+    do                                                       \
+        {                                                        \
+log_success("%s: completed successfully", __func__); \
+return_(STATUS_SUCCESS,_value);                      \
+} while (0)
+
 
 /* ==========================================================
  *  Panic handling
@@ -98,16 +119,14 @@ typedef enum
 __attribute__((noreturn)) static inline void panic_impl(const char *file,
                                                         const char *func,
                                                         int line,
-                                                        const char *reason)
-{
+                                                        const char *reason) {
     log_error("PANIC at %s:%d (%s) | %s",
               file, line, func, reason);
 
     PANIC_ACT;
 
     /* Defensive infinite loop for embedded builds */
-    while (1)
-    {
+    while (1) {
     }
 }
 
@@ -137,13 +156,13 @@ __attribute__((noreturn)) static inline void panic_impl(const char *file,
 /*
  * Return RETURN_FAIL if condition is true.
  */
-#define return_fail_if(cond)                          \
+#define return_fail_if(_cond,_error)                          \
     do                                                \
     {                                                 \
-        if (cond)                                     \
+        if (_cond)                                     \
         {                                             \
-            log_error("Condition failed: %s", #cond); \
-            return RETURN_FAIL;                       \
+            log_error("Condition failed: %s", #_cond); \
+            return_failure(_error);                       \
         }                                             \
     } while (0)
 
@@ -156,13 +175,24 @@ __attribute__((noreturn)) static inline void panic_impl(const char *file,
 #define return_on_fail(expr)                    \
     do                                          \
     {                                           \
-        return_e _ret = (expr);                 \
-        if (_ret == RETURN_FAIL)                \
+        return_t _ret = expr;                 \
+        if (_ret.status == STATUS_FAILURE)                \
         {                                       \
             log_error("Failure in: %s", #expr); \
-            return RETURN_FAIL;                 \
+            return _ret;                 \
         }                                       \
     } while (0)
+
+#define exit_on_fail(expr)                    \
+do                                          \
+{                                           \
+return_t _ret = (expr);                 \
+if (_ret.status == STATUS_FAILURE)                \
+{                                       \
+log_error("Failure in: %s", #expr); \
+exit(EXIT_FAILURE);                 \
+}                                       \
+} while (0)
 
 /*
  * Return NULL on failure condition.
@@ -179,7 +209,7 @@ __attribute__((noreturn)) static inline void panic_impl(const char *file,
     } while (0)
 
 /*
- * Jump to cleanup label if condition is true.
+ * Jump to clean up label if condition is true.
  * Requires a label named `cleanup:` in the function.
  */
 #define goto_cleanup_if(cond)                         \
