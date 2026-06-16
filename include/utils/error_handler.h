@@ -38,11 +38,13 @@ typedef enum {
 } status_e;
 
 typedef struct {
-    int32_t status: 2;
-    int32_t value: 30;
-}return_mut;
+    status_e status;
+    union {
+        int value;       // Holds value on success
+        int error_code;  // Holds error code on failure (if needed)
+    };
+} return_t;
 
-typedef return_mut const return_t;
 
 /* ==========================================================
  *  Standardized return helpers
@@ -55,6 +57,14 @@ typedef return_mut const return_t;
  */
 
 
+/**
+ * @brief Macro to return a value with a given status.
+ *
+ * Logs the return action with function context and value/status information.
+ *
+ * @param _status Status code (e.g. STATUS_SUCCESS or STATUS_FAILURE)
+ * @param _value  Value or error code to return
+ */
 #define return_(_status,_value)                               \
     do                                              \
     {                                               \
@@ -66,20 +76,39 @@ typedef return_mut const return_t;
         return ret;                         \
     } while (0)
 
-#define return_failure(_return_value)                               \
+/**
+ * @brief Macro to return a failure.
+ *
+ * Logs the failure and returns with STATUS_FAILURE and the given error code.
+ *
+ * @param _error_code The error code to return
+ */
+#define return_failure(_error_code)                               \
     do                                              \
     {                                               \
         log_fail("%s: execution failed", __func__); \
-        return_(STATUS_FAILURE,_return_value);                      \
+        return_(STATUS_FAILURE,_error_code);                      \
     } while (0)
 
+/**
+ * @brief Macro to return success (no value).
+ *
+ * Logs the successful completion and returns with STATUS_SUCCESS.
+ */
 #define return_success()                                     \
     do                                                       \
     {                                                        \
         log_success("%s: completed successfully", __func__); \
-        return_(STATUS_SUCCESS,0);                      \
+        return_(STATUS_SUCCESS);                      \
     } while (0)
 
+/**
+ * @brief Macro to return a successful value.
+ *
+ * Logs the successful completion and returns with STATUS_SUCCESS and the given value.
+ *
+ * @param _value Value to return
+ */
 #define return_value(_value)                                     \
     do                                                       \
         {                                                        \
