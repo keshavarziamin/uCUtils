@@ -18,33 +18,31 @@
 
 #include <stdlib.h>
 #include <stdint.h>
-#include "logging.h"
 
+#include "logging.h"
 
 /* ==========================================================
  *  Return status abstraction
  * ----------------------------------------------------------
  *  Explicit binary return model:
- *      RETURN_SUCCESS = 0
- *      RETURN_FAIL    = 1
+ *      STATUS_SUCCESS = 0
+ *      STATUS_FAILURE = 1
  *
  *  NOTE:
  *      0 == success aligns with POSIX / Linux convention.
- * ==========================================================
- */
+ * ========================================================== */
 typedef enum {
-    STATUS_SUCCESS = 0, // none error
+    STATUS_SUCCESS = 0, /* no error */
     STATUS_FAILURE = 1,
 } status_e;
 
 typedef struct {
     status_e status;
-    union {
-        int value;       // Holds value on success
-        int error_code;  // Holds error code on failure (if needed)
-    };
+    int32_t  value; /* payload on success, error code on failure */
 } return_t;
 
+#define return_is_success(ret) ((ret).status == STATUS_SUCCESS)
+#define return_is_failure(ret) ((ret).status == STATUS_FAILURE)
 
 /* ==========================================================
  *  Standardized return helpers
@@ -53,69 +51,36 @@ typedef struct {
  *    - Log function context
  *    - Return immediately
  *    - Are statement-safe
- * ==========================================================
- */
+ * ========================================================== */
 
-
-/**
- * @brief Macro to return a value with a given status.
- *
- * Logs the return action with function context and value/status information.
- *
- * @param _status Status code (e.g. STATUS_SUCCESS or STATUS_FAILURE)
- * @param _value  Value or error code to return
- */
-#define return_(_status,_value)                               \
-    do                                              \
-    {                                               \
-        log_debug("%s: return %s with value = %d",__func__,#_status,_value); \
-        return_t ret = {\
-            .status = _status,\
-            .value = _value\
-        };\
-        return ret;                         \
+#define return_(_status, _value)                                    \
+    do {                                                            \
+        log_debug("%s: return %s with value = %d",                  \
+                  __func__, #_status, (int)(_value));               \
+        return_t _ret = {                                           \
+            .status = (_status),                                    \
+            .value  = (_value),                                     \
+        };                                                          \
+        return _ret;                                                \
     } while (0)
 
-/**
- * @brief Macro to return a failure.
- *
- * Logs the failure and returns with STATUS_FAILURE and the given error code.
- *
- * @param _error_code The error code to return
- */
-#define return_failure(_error_code)                               \
-    do                                              \
-    {                                               \
-        log_fail("%s: execution failed", __func__); \
-        return_(STATUS_FAILURE,_error_code);                      \
+#define return_failure(_error_code)                                 \
+    do {                                                            \
+        log_fail("%s: execution failed", __func__);                 \
+        return_(STATUS_FAILURE, _error_code);                       \
     } while (0)
 
-/**
- * @brief Macro to return success (no value).
- *
- * Logs the successful completion and returns with STATUS_SUCCESS.
- */
-#define return_success()                                     \
-    do                                                       \
-    {                                                        \
-        log_success("%s: completed successfully", __func__); \
-        return_(STATUS_SUCCESS);                      \
+#define return_success()                                          \
+    do {                                                            \
+        log_success("%s: completed successfully", __func__);      \
+        return_(STATUS_SUCCESS, 0);                                 \
     } while (0)
 
-/**
- * @brief Macro to return a successful value.
- *
- * Logs the successful completion and returns with STATUS_SUCCESS and the given value.
- *
- * @param _value Value to return
- */
-#define return_value(_value)                                     \
-    do                                                       \
-        {                                                        \
-log_success("%s: completed successfully", __func__); \
-return_(STATUS_SUCCESS,_value);                      \
-} while (0)
-
+#define return_value(_value)                                      \
+    do {                                                            \
+        log_success("%s: completed successfully", __func__);      \
+        return_(STATUS_SUCCESS, _value);                            \
+    } while (0)
 
 /* ==========================================================
  *  Panic handling
@@ -132,123 +97,77 @@ return_(STATUS_SUCCESS,_value);                      \
  *      - NVIC_SystemReset()
  *      - while(1)
  *      - watchdog reset
- * ==========================================================
- */
+ * ========================================================== */
 
 #ifndef PANIC_ACT
 #define PANIC_ACT exit(EXIT_FAILURE)
 #endif
 
-/*
- * panic_impl()
- *
- * Non-returning fatal handler.
- * Always terminates program flow.
- */
 __attribute__((noreturn)) static inline void panic_impl(const char *file,
                                                         const char *func,
                                                         int line,
-                                                        const char *reason) {
-    log_error("PANIC at %s:%d (%s) | %s",
-              file, line, func, reason);
-
+                                                        const char *reason)
+{
+    log_error("PANIC at %s:%d (%s) | %s", file, line, func, reason);
     PANIC_ACT;
-
-    /* Defensive infinite loop for embedded builds */
     while (1) {
     }
 }
 
-/*
- * Panic macro with file/function/line context.
- */
 #define panic(reason) \
     panic_impl(__FILE__, __func__, __LINE__, (reason))
 
-/*
- * Conditional panic.
- */
-#define panic_if(cond)    \
-    do                    \
-    {                     \
-        if (cond)         \
-        {                 \
-            panic(#cond); \
-        }                 \
+#define panic_if(cond)              \
+    do {                            \
+        if (cond) {                 \
+            panic(#cond);           \
+        }                           \
     } while (0)
 
 /* ==========================================================
- *  Conditional Return Helpers
- * ==========================================================
- */
+ *  Conditional return helpers
+ * ========================================================== */
 
-/*
- * Return RETURN_FAIL if condition is true.
- */
-#define return_fail_if(_cond,_error)                          \
-    do                                                \
-    {                                                 \
-        if (_cond)                                     \
-        {                                             \
-            log_error("Condition failed: %s", #_cond); \
-            return_failure(_error);                       \
-        }                                             \
+#define return_fail_if(_cond, _error)                               \
+    do {                                                            \
+        if (_cond) {                                                \
+            log_error("Condition failed: %s", #_cond);              \
+            return_failure(_error);                                 \
+        }                                                           \
     } while (0)
 
-/*
- * Propagate failure from another function.
- *
- * Example:
- *      return_on_fail(init_driver());
- */
-#define return_on_fail(expr)                    \
-    do                                          \
-    {                                           \
-        return_t _ret = expr;                 \
-        if (_ret.status == STATUS_FAILURE)                \
-        {                                       \
-            log_error("Failure in: %s", #expr); \
-            return _ret;                 \
-        }                                       \
+#define return_on_fail(expr)                                        \
+    do {                                                            \
+        return_t _ret = (expr);                                     \
+        if (return_is_failure(_ret)) {                              \
+            log_error("Failure in: %s", #expr);                     \
+            return _ret;                                            \
+        }                                                           \
     } while (0)
 
-#define exit_on_fail(expr)                    \
-do                                          \
-{                                           \
-return_t _ret = (expr);                 \
-if (_ret.status == STATUS_FAILURE)                \
-{                                       \
-log_error("Failure in: %s", #expr); \
-exit(EXIT_FAILURE);                 \
-}                                       \
-} while (0)
-
-/*
- * Return NULL on failure condition.
- * Intended for pointer-returning functions.
- */
-#define return_null_if(cond)                          \
-    do                                                \
-    {                                                 \
-        if (cond)                                     \
-        {                                             \
-            log_error("Condition failed: %s", #cond); \
-            return NULL;                              \
-        }                                             \
+#define exit_on_fail(expr)                                          \
+    do {                                                            \
+        return_t _ret = (expr);                                     \
+        if (return_is_failure(_ret)) {                              \
+            log_error("Failure in: %s", #expr);                     \
+            exit(EXIT_FAILURE);                                     \
+        }                                                           \
     } while (0)
 
-/*
- * Jump to clean up label if condition is true.
- * Requires a label named `cleanup:` in the function.
- */
-#define goto_cleanup_if(cond)                         \
-    do                                                \
-    {                                                 \
-        if (cond)                                     \
-        {                                             \
-            log_error("Condition failed: %s", #cond); \
-            goto cleanup;                             \
-        }                                             \
+#define return_null_if(cond)                                        \
+    do {                                                            \
+        if (cond) {                                                 \
+            log_error("Condition failed: %s", #cond);               \
+            return NULL;                                            \
+        }                                                           \
+    } while (0)
+
+#define goto_cleanup_if(cond)                                       \
+    do {                                                            \
+        if (cond) {                                                 \
+            log_error("Condition failed: %s", #cond);               \
+            goto cleanup;                                           \
+        }                                                           \
     } while (0)
 
 #endif /* UTILS_ERROR_HANDLER_H */
