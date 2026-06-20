@@ -1,8 +1,61 @@
 # UCUtils
 
+[![Version](https://img.shields.io/badge/version-0.1.0-blue)](CMakeLists.txt)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Standard](https://img.shields.io/badge/C-C11-blue)](CMakeLists.txt)
+
 Header-only C utilities for embedded and system-level projects. Provides structured error handling, compile-time logging, and fatal panic helpers with minimal runtime overhead.
 
 Part of [MCUBoost](https://github.com/MCUBoost).
+
+## Release v0.1.0
+
+First public release. Establishes the core diagnostics foundation: logging macros, structured returns, and panic handling — all header-only with zero heap usage.
+
+### Included modules
+
+| Module | Header | Status |
+|--------|--------|--------|
+| Logging | `include/ucutils/logging.h` | Stable |
+| Error handling | `include/ucutils/error_handler.h` | Stable |
+
+### Features in v0.1.0
+
+**Logging (`logging.h`)**
+- Six compile-time log levels: `NONE`, `ERROR`, `INFO`, `DEBUG`, `STATUS`, `TRACE`
+- Tagged output with module name, level, file, line, and function (`log_error`)
+- Level-gated macros stripped at compile time when disabled
+- Pluggable output backend via `LOG_WRITE` (default: `printf`)
+- Configurable line ending via `ENDL` (default: `\r\n`)
+- Raw helpers: `log_print`, `log_println`, `println`
+- C++ compatible (`extern "C"`)
+
+**Error handling (`error_handler.h`)**
+- Portable `return_t` struct: `{ status_e status; int32_t value; }`
+- Binary status model: `STATUS_SUCCESS` (0) / `STATUS_FAILURE` (1)
+- Return macros: `return_success`, `return_value`, `return_failure`, `return_`
+- Conditional helpers: `return_fail_if`, `return_on_fail`, `exit_on_fail`
+- Cleanup pattern: `return_null_if`, `goto_cleanup_if`
+- Status checks: `return_is_success`, `return_is_failure`
+- Fatal panic: `panic`, `panic_if` with overridable `PANIC_ACT`
+- Integrated logging on success, failure, and error paths
+
+**Build & integration**
+- CMake INTERFACE library: `UCUtils::ucutils`
+- `find_package(UCUtils)` with install support
+- Optional compile tests (`UCUTILS_BUILD_TESTS`, default ON)
+- Optional examples (`UCUTILS_BUILD_EXAMPLES`, default OFF)
+- C11 required; no `.c` source files to link
+
+### Not in v0.1.0 (planned)
+
+| Feature | Target |
+|---------|--------|
+| Lightweight formatter (replace `printf`) | v0.2.0 |
+| UART / ITM log sinks | v0.2.0 |
+| Ring buffer for async logging | v0.2.0 |
+| Timestamps in log lines | v0.3.0 |
+| Assert / fault handler module | v0.3.0 |
 
 ## What
 
@@ -271,6 +324,17 @@ target_link_libraries(my_app PRIVATE UCUtils::ucutils)
 - **`return_t` vs `NULL`** — use `return_t` for operational results; use `return_null_if` only in pointer-returning APIs
 - **Logging on success paths** — `return_success` / `return_value` emit `log_success` when `LOG_LEVEL >= LOG_LEVEL_STATUS`
 - **C++** — headers use `extern "C"` guards and can be included from C++
+
+## Changelog
+
+### v0.1.0
+
+- Initial release as **UCUtils** (micro C utilities)
+- Add `logging.h` with compile-time level stripping and `LOG_WRITE` backend hook
+- Add `error_handler.h` with `return_t`, propagation macros, and panic helpers
+- Add CMake INTERFACE target `UCUtils::ucutils` with install and `find_package` support
+- Add compile test and error-handler example
+- MIT license
 
 ## License
 
