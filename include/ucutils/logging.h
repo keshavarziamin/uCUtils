@@ -1,5 +1,5 @@
-#ifndef CUTILS_LOGGING_H
-#define CUTILS_LOGGING_H
+#ifndef UCUTILS_LOGGING_H
+#define UCUTILS_LOGGING_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -106,4 +106,4 @@ extern "C" {
 }
 #endif
 
-#endif /* CUTILS_LOGGING_H */
+#endif /* UCUTILS_LOGGING_H */

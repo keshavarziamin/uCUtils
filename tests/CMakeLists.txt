@@ -1,10 +1,10 @@
-add_executable(cutils_compile_test compile_test.c)
+add_executable(ucutils_compile_test compile_test.c)
 
-target_link_libraries(cutils_compile_test PRIVATE CUtils::cutils)
+target_link_libraries(ucutils_compile_test PRIVATE UCUtils::ucutils)
 
-target_compile_definitions(cutils_compile_test PRIVATE
+target_compile_definitions(ucutils_compile_test PRIVATE
     LOG_LEVEL=LOG_LEVEL_STATUS
     LOG_MODULE_TAG=\"TEST\"
 )
 
-add_test(NAME cutils_compile_test COMMAND cutils_compile_test)
+add_test(NAME ucutils_compile_test COMMAND ucutils_compile_test)

@@ -1,4 +1,4 @@
-# CUtils
+# UCUtils
 
 Header-only C utilities for embedded and system-level projects. Provides structured error handling, compile-time logging, and fatal panic helpers with minimal runtime overhead.
 
@@ -6,12 +6,12 @@ Part of [MCUBoost](https://github.com/MCUBoost).
 
 ## What
 
-**CUtils** is a small, macro-based utility library:
+**UCUtils** (micro C utilities) is a small, macro-based utility library:
 
 | Header | Purpose |
 |--------|---------|
-| `include/cutils/logging.h` | Compile-time leveled logging (`log_error`, `log_info`, `log_debug`, …) |
-| `include/cutils/error_handler.h` | Structured returns (`return_t`), failure propagation, panic helpers |
+| `include/ucutils/logging.h` | Compile-time leveled logging (`log_error`, `log_info`, `log_debug`, …) |
+| `include/ucutils/error_handler.h` | Structured returns (`return_t`), failure propagation, panic helpers |
 
 Functions return a `return_t` value instead of mixing `int`, `NULL`, and ad-hoc error codes:
 
@@ -51,10 +51,10 @@ This library standardizes those patterns:
 
 ```cmake
 # Add as a subdirectory or fetch via FetchContent / install
-add_subdirectory(path/to/CUtils)
+add_subdirectory(path/to/UCUtils)
 
 add_executable(my_app main.c)
-target_link_libraries(my_app PRIVATE CUtils::cutils)
+target_link_libraries(my_app PRIVATE UCUtils::ucutils)
 
 target_compile_definitions(my_app PRIVATE
     LOG_LEVEL=LOG_LEVEL_STATUS
@@ -72,14 +72,14 @@ cmake --build build
 Add `include/` to your compiler include path and define the required macros **before** including the headers:
 
 ```bash
-gcc -std=c11 -Ipath/to/CUtils/include \
+gcc -std=c11 -Ipath/to/UCUtils/include \
     -DLOG_LEVEL=LOG_LEVEL_STATUS \
     -DLOG_MODULE_TAG=\"MY_APP\" \
     main.c -o my_app
 ```
 
 ```c
-#include <cutils/error_handler.h>
+#include <ucutils/error_handler.h>
 
 static return_t init_sensor(void)
 {
@@ -152,7 +152,7 @@ Levels are ordered from least to most verbose:
 #define LOG_LEVEL       LOG_LEVEL_INFO
 #define LOG_MODULE_TAG  "MOTOR"
 
-#include <cutils/error_handler.h>
+#include <ucutils/error_handler.h>
 ```
 
 ### Example: MCU panic handler
@@ -160,7 +160,7 @@ Levels are ordered from least to most verbose:
 ```c
 #define PANIC_ACT NVIC_SystemReset()
 
-#include <cutils/error_handler.h>
+#include <ucutils/error_handler.h>
 ```
 
 ## API reference
@@ -212,12 +212,15 @@ Use panics only for unrecoverable faults (corruption, invariant violations, fata
 ## Project layout
 
 ```
-CUtils/
-├── include/cutils/
+UCUtils/
+├── include/ucutils/
 │   ├── logging.h
 │   └── error_handler.h
 ├── cmake/
-│   └── cutilsConfig.cmake.in
+│   └── ucutilsConfig.cmake.in
+├── examples/
+│   ├── CMakeLists.txt
+│   └── error_handler_exmpale.c
 ├── tests/
 │   ├── CMakeLists.txt
 │   └── compile_test.c
@@ -229,7 +232,7 @@ CUtils/
 ## Building tests
 
 ```bash
-cmake -S . -B build -DCUTILS_BUILD_TESTS=ON
+cmake -S . -B build -DUCUTILS_BUILD_TESTS=ON
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
@@ -237,7 +240,15 @@ ctest --test-dir build --output-on-failure
 Disable tests when embedding the library:
 
 ```bash
-cmake -S . -B build -DCUTILS_BUILD_TESTS=OFF
+cmake -S . -B build -DUCUTILS_BUILD_TESTS=OFF
+```
+
+## Building examples
+
+```bash
+cmake -S . -B build -DUCUTILS_BUILD_EXAMPLES=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
 ## Install
@@ -250,8 +261,8 @@ cmake --install build --prefix /path/to/install
 Consumer CMake project:
 
 ```cmake
-find_package(CUtils REQUIRED)
-target_link_libraries(my_app PRIVATE CUtils::cutils)
+find_package(UCUtils REQUIRED)
+target_link_libraries(my_app PRIVATE UCUtils::ucutils)
 ```
 
 ## Design notes

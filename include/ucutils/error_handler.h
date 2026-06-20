@@ -1,5 +1,5 @@
-#ifndef CUTILS_ERROR_HANDLER_H
-#define CUTILS_ERROR_HANDLER_H
+#ifndef UCUTILS_ERROR_HANDLER_H
+#define UCUTILS_ERROR_HANDLER_H
 
 /*
  * ==========================================================
@@ -170,4 +170,4 @@ __attribute__((noreturn)) static inline void panic_impl(const char *file,
         }                                                           \
     } while (0)
 
-#endif /* CUTILS_ERROR_HANDLER_H */
+#endif /* UCUTILS_ERROR_HANDLER_H */
