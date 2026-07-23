@@ -6,7 +6,6 @@
 
 Header-only C utilities for embedded and system-level projects. Provides structured error handling, compile-time logging, and fatal panic helpers with minimal runtime overhead.
 
-Part of [MCUBoost](https://github.com/MCUBoost).
 
 ## Release v0.1.0
 
@@ -47,15 +46,21 @@ First public release. Establishes the core diagnostics foundation: logging macro
 - Optional examples (`UCUTILS_BUILD_EXAMPLES`, default OFF)
 - C11 required; no `.c` source files to link
 
-### Not in v0.1.0 (planned)
+### Not in v0.2.0 (planned)
 
 | Feature | Target |
 |---------|--------|
-| Lightweight formatter (replace `printf`) | v0.2.0 |
-| UART / ITM log sinks | v0.2.0 |
-| Ring buffer for async logging | v0.2.0 |
+| Lightweight formatter (replace `printf`) | v0.2.x |
+| Ring buffer for async logging | v0.3.0 |
 | Timestamps in log lines | v0.3.0 |
 | Assert / fault handler module | v0.3.0 |
+
+### New in v0.2.0
+
+- **`install.sh`** — configure, build, test, and install for host and ARM Cortex-M presets
+- **Generic ARM toolchain** — [`cmake/gcc-arm-none-eabi.cmake`](cmake/gcc-arm-none-eabi.cmake) (consumer sets CPU/FPU/linker script)
+- **Log sinks** — `LOG_SINK_STDIO`, `LOG_SINK_UART`, `LOG_SINK_ITM` for STM32 + GCC
+- **UART handle required** — `UCUTILS_UART_HANDLE` must be set in your project CMake (no silent default)
 
 ## What
 
@@ -96,15 +101,65 @@ This library standardizes those patterns:
 ## Requirements
 
 - C11 compiler
-- CMake 3.16+ (optional, for integration and tests)
+- CMake 3.16+ (recommended for integration, install, and tests)
+- Optional: `arm-none-eabi-gcc` for cross-compiled firmware installs
 
-## Quick start
+## Integration tutorial
 
-### CMake (recommended)
+UCUtils is header-only and architecture-agnostic. Pick the integration path that fits your project.
+
+| Method | Best for |
+|--------|----------|
+| [Install + `find_package`](#1-install--find_package-host-or-arm) | Separate firmware/app repos, multiple targets |
+| [`add_subdirectory`](#2-add_subdirectory--git-submodule) | Monorepo, vendored copy, rapid iteration |
+| [Manual `-I` / `-D`](#3-manual-compiler-flags-no-cmake) | Bare-metal without CMake, quick experiments |
+
+**Important:** install prefix must match your target architecture:
+
+| Target | Install command | Prefix |
+|--------|-----------------|--------|
+| Host (Linux/PC) | `./install.sh` | `~/.local/ucutils_host` |
+| Cortex-M4 firmware | `./install.sh --arch cortex-m4` | `~/.local/ucutils_arm_m4` |
+| Cortex-M7 firmware | `./install.sh --arch cortex-m7` | `~/.local/ucutils_arm_m7` |
+
+---
+
+### 1. Install + `find_package` (host or ARM)
+
+#### Step 1 — Install UCUtils
+
+```bash
+git clone https://github.com/your-org/uCUtils.git
+cd uCUtils
+
+# Host (runs tests during install)
+./install.sh
+
+# ARM firmware (skips host tests; installs headers + CMake package)
+./install.sh --arch cortex-m4
+./install.sh --arch cortex-m0plus
+./install.sh --arch cortex-m7 --build-type Release
+```
+
+Install options:
+
+```bash
+./install.sh --help
+./install.sh --prefix /opt/ucutils_arm_m4 --arch cortex-m4
+./install.sh --examples          # also build examples
+./install.sh --no-tests          # skip ctest on host
+```
+
+#### Step 2 — Use in your project `CMakeLists.txt`
+
+**Host application (Linux/PC):**
 
 ```cmake
-# Add as a subdirectory or fetch via FetchContent / install
-add_subdirectory(path/to/UCUtils)
+cmake_minimum_required(VERSION 3.16)
+project(my_host_app C)
+
+list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/.local/ucutils_host")
+find_package(UCUtils REQUIRED)
 
 add_executable(my_app main.c)
 target_link_libraries(my_app PRIVATE UCUtils::ucutils)
@@ -118,18 +173,155 @@ target_compile_definitions(my_app PRIVATE
 ```bash
 cmake -S . -B build
 cmake --build build
+./build/my_app
 ```
 
-### Manual integration
+**STM32 firmware (UART logging):**
 
-Add `include/` to your compiler include path and define the required macros **before** including the headers:
+```cmake
+cmake_minimum_required(VERSION 3.16)
+project(my_firmware C)
+
+list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/.local/ucutils_arm_m4")
+find_package(UCUtils REQUIRED)
+
+add_executable(my_firmware main.c startup.s)
+target_link_libraries(my_firmware PRIVATE UCUtils::ucutils)
+
+# UART handle comes from YOUR project (CubeMX/HAL), not from UCUtils defaults
+target_compile_definitions(my_firmware PRIVATE
+    UCUTILS_PROJECT_TARGET=PROJECT_TARGET_STM32
+    UCUTILS_LOG_SINK=LOG_SINK_UART
+    UCUTILS_UART_HANDLE=huart2
+    LOG_LEVEL=LOG_LEVEL_DEBUG
+    LOG_MODULE_TAG=\"FIRMWARE\"
+)
+```
+
+Configure with your ARM toolchain:
 
 ```bash
-gcc -std=c11 -Ipath/to/UCUtils/include \
+cmake -S . -B build \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/your/toolchain.cmake \
+  -DCMAKE_PREFIX_PATH="$HOME/.local/ucutils_arm_m4"
+
+cmake --build build
+```
+
+In `main.c`, include HAL **before** UCUtils when using UART or ITM:
+
+```c
+#include "main.h"              /* your STM32 HAL / CubeMX generated headers */
+#include <ucutils/error_handler.h>
+```
+
+**STM32 firmware (ITM / SWO logging):**
+
+```cmake
+target_compile_definitions(my_firmware PRIVATE
+    UCUTILS_PROJECT_TARGET=PROJECT_TARGET_STM32
+    UCUTILS_LOG_SINK=LOG_SINK_ITM
+    LOG_LEVEL=LOG_LEVEL_DEBUG
+    LOG_MODULE_TAG=\"FIRMWARE\"
+)
+```
+
+Include CMSIS core header before UCUtils (e.g. `core_cm4.h` from your MCU pack).
+
+---
+
+### 2. `add_subdirectory` / git submodule
+
+Add UCUtils inside your repo (no install step):
+
+```bash
+git submodule add https://github.com/your-org/uCUtils.git third_party/uCUtils
+```
+
+**`CMakeLists.txt`:**
+
+```cmake
+cmake_minimum_required(VERSION 3.16)
+project(my_project C)
+
+add_subdirectory(third_party/uCUtils)
+
+add_executable(my_app main.c)
+target_link_libraries(my_app PRIVATE UCUtils::ucutils)
+
+target_compile_definitions(my_app PRIVATE
+    LOG_LEVEL=LOG_LEVEL_STATUS
+    LOG_MODULE_TAG=\"MY_APP\"
+)
+```
+
+For STM32 UART inside a monorepo, set the UART handle on **your** target:
+
+```cmake
+target_compile_definitions(my_app PRIVATE
+    UCUTILS_PROJECT_TARGET=PROJECT_TARGET_STM32
+    UCUTILS_LOG_SINK=LOG_SINK_UART
+    UCUTILS_UART_HANDLE=huart1
+    LOG_LEVEL=LOG_LEVEL_DEBUG
+    LOG_MODULE_TAG=\"MY_APP\"
+)
+```
+
+Or pass options when configuring UCUtils itself:
+
+```bash
+cmake -S . -B build \
+  -DUCUTILS_LOG_SINK=LOG_SINK_UART \
+  -DUCUTILS_UART_HANDLE=huart1
+```
+
+CMake will fail at configure time if `LOG_SINK_UART` is selected without `UCUTILS_UART_HANDLE`.
+
+---
+
+### 3. Manual compiler flags (no CMake)
+
+```bash
+arm-none-eabi-gcc -std=c11 \
+    -I/path/to/uCUtils/include \
+    -I/path/to/STM32_HAL/Inc \
+    -DUCUTILS_PROJECT_TARGET=PROJECT_TARGET_STM32 \
+    -DUCUTILS_LOG_SINK=LOG_SINK_UART \
+    -DUCUTILS_UART_HANDLE=huart1 \
     -DLOG_LEVEL=LOG_LEVEL_STATUS \
     -DLOG_MODULE_TAG=\"MY_APP\" \
-    main.c -o my_app
+    main.c -o my_firmware.elf
 ```
+
+---
+
+### 4. ARM toolchain file (consumer project)
+
+UCUtils ships a **generic** [`cmake/gcc-arm-none-eabi.cmake`](cmake/gcc-arm-none-eabi.cmake). It does not hardcode an MCU — your project supplies CPU and linker script:
+
+```bash
+cmake -S . -B build \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/uCUtils/cmake/gcc-arm-none-eabi.cmake \
+  -DARM_CPU=cortex-m4 \
+  -DARM_FPU=fpv4-sp-d16 \
+  -DARM_FLOAT_ABI=hard \
+  -DARM_LINKER_SCRIPT=/path/to/your/linker.ld \
+  -DCMAKE_PREFIX_PATH="$HOME/.local/ucutils_arm_m4"
+```
+
+Supported `install.sh --arch` presets:
+
+| `--arch` | ARM_CPU | FPU | Float ABI |
+|----------|---------|-----|-----------|
+| `cortex-m0` | cortex-m0 | — | soft |
+| `cortex-m0plus` | cortex-m0plus | — | soft |
+| `cortex-m3` | cortex-m3 | — | soft |
+| `cortex-m4` | cortex-m4 | fpv4-sp-d16 | hard |
+| `cortex-m7` | cortex-m7 | fpv5-sp-d16 | hard |
+
+---
+
+### Minimal application example
 
 ```c
 #include <ucutils/error_handler.h>
@@ -158,6 +350,27 @@ int main(void)
 }
 ```
 
+## Quick start
+
+### CMake (subdirectory)
+
+```cmake
+add_subdirectory(path/to/uCUtils)
+
+add_executable(my_app main.c)
+target_link_libraries(my_app PRIVATE UCUtils::ucutils)
+
+target_compile_definitions(my_app PRIVATE
+    LOG_LEVEL=LOG_LEVEL_STATUS
+    LOG_MODULE_TAG=\"MY_APP\"
+)
+```
+
+```bash
+cmake -S . -B build
+cmake --build build
+```
+
 ## Configuration
 
 Define these **before** including `logging.h` (directly or via `error_handler.h`).
@@ -169,13 +382,23 @@ Define these **before** including `logging.h` (directly or via `error_handler.h`
 | `LOG_LEVEL` | Maximum log verbosity (see levels below) | `-DLOG_LEVEL=LOG_LEVEL_DEBUG` |
 | `LOG_MODULE_TAG` | Short tag printed in every log line | `-DLOG_MODULE_TAG=\"SENSOR\"` |
 
-### Optional
+### Platform and log sink (optional)
 
 | Macro | Default | Description |
 |-------|---------|-------------|
-| `LOG_WRITE(...)` | `printf(__VA_ARGS__)` | Low-level output backend. Override for UART, RTT, semihosting, etc. |
+| `UCUTILS_PROJECT_TARGET` | `PROJECT_TARGET_HOST` | `PROJECT_TARGET_HOST` or `PROJECT_TARGET_STM32` |
+| `UCUTILS_LOG_SINK` | `LOG_SINK_STDIO` | `LOG_SINK_STDIO`, `LOG_SINK_UART`, or `LOG_SINK_ITM` |
+| `UCUTILS_UART_HANDLE` | *(none)* | **Required** when `UCUTILS_LOG_SINK=LOG_SINK_UART` (e.g. `huart1`, `huart2`) |
+
+When `UCUTILS_LOG_SINK=LOG_SINK_UART` is used without `UCUTILS_UART_HANDLE`, CMake configure and compilation both fail with an explicit error.
+
+### Other optional macros
+
+| Macro | Default | Description |
+|-------|---------|-------------|
+| `LOG_WRITE(...)` | `printf(__VA_ARGS__)` | Low-level output backend. Override for custom sinks |
 | `ENDL` | `LOG_WRITE("\r\n")` | Line ending appended by `log_println` |
-| `PANIC_ACT` | `exit(EXIT_FAILURE)` | Action taken after a panic. On MCU, use reset or watchdog. |
+| `PANIC_ACT` | `exit(EXIT_FAILURE)` | Action taken after a panic. On MCU, use reset or watchdog |
 
 ### Log levels
 
@@ -198,10 +421,29 @@ Levels are ordered from least to most verbose:
 | Bring-up / development | `LOG_LEVEL_STATUS` or `LOG_LEVEL_DEBUG` |
 | Deep debugging | `LOG_LEVEL_TRACE` |
 
+### Example: STM32 UART log sink
+
+Set the UART handle in your **project root** `CMakeLists.txt`:
+
+```cmake
+target_compile_definitions(my_firmware PRIVATE
+    UCUTILS_PROJECT_TARGET=PROJECT_TARGET_STM32
+    UCUTILS_LOG_SINK=LOG_SINK_UART
+    UCUTILS_UART_HANDLE=huart2
+    LOG_LEVEL=LOG_LEVEL_INFO
+    LOG_MODULE_TAG=\"MOTOR\"
+)
+```
+
+```c
+#include "main.h"   /* STM32 HAL must come first */
+#include <ucutils/error_handler.h>
+```
+
 ### Example: custom log backend (embedded)
 
 ```c
-#define LOG_WRITE(...) uart_write(__VA_ARGS__)
+#define LOG_WRITE(...) my_custom_write(__VA_ARGS__)
 #define LOG_LEVEL       LOG_LEVEL_INFO
 #define LOG_MODULE_TAG  "MOTOR"
 
@@ -270,6 +512,7 @@ UCUtils/
 │   ├── logging.h
 │   └── error_handler.h
 ├── cmake/
+│   ├── gcc-arm-none-eabi.cmake   # generic ARM toolchain (consumer sets CPU/linker)
 │   └── ucutilsConfig.cmake.in
 ├── examples/
 │   ├── CMakeLists.txt
@@ -277,12 +520,23 @@ UCUtils/
 ├── tests/
 │   ├── CMakeLists.txt
 │   └── compile_test.c
+├── install.sh                    # build, test, install (host + ARM presets)
 ├── CMakeLists.txt
 ├── LICENSE
 └── README.md
 ```
 
-## Building tests
+## Building UCUtils (development)
+
+### Using `install.sh` (recommended)
+
+```bash
+./install.sh                          # host → ~/.local/ucutils_host
+./install.sh --arch cortex-m4         # ARM  → ~/.local/ucutils_arm_m4
+./install.sh --examples --build-type Release
+```
+
+### Manual CMake
 
 ```bash
 cmake -S . -B build -DUCUTILS_BUILD_TESTS=ON
@@ -296,7 +550,7 @@ Disable tests when embedding the library:
 cmake -S . -B build -DUCUTILS_BUILD_TESTS=OFF
 ```
 
-## Building examples
+### Examples
 
 ```bash
 cmake -S . -B build -DUCUTILS_BUILD_EXAMPLES=ON
@@ -304,16 +558,32 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+Or via install script:
+
+```bash
+./install.sh --examples
+```
+
 ## Install
 
 ```bash
+# Quick install (host, with tests)
+./install.sh
+
+# Custom prefix
+./install.sh --arch cortex-m4 --prefix /opt/ucutils_arm_m4
+
+# Manual equivalent
 cmake -S . -B build
-cmake --install build --prefix /path/to/install
+cmake --build build
+ctest --test-dir build --output-on-failure
+cmake --install build --prefix ~/.local/ucutils_host
 ```
 
-Consumer CMake project:
+Consumer CMake project after install:
 
 ```cmake
+list(APPEND CMAKE_PREFIX_PATH "$ENV{HOME}/.local/ucutils_host")
 find_package(UCUtils REQUIRED)
 target_link_libraries(my_app PRIVATE UCUtils::ucutils)
 ```
@@ -326,6 +596,14 @@ target_link_libraries(my_app PRIVATE UCUtils::ucutils)
 - **C++** — headers use `extern "C"` guards and can be included from C++
 
 ## Changelog
+
+### v0.2.0
+
+- Add `install.sh` with host and Cortex-M architecture presets
+- Add generic `cmake/gcc-arm-none-eabi.cmake` toolchain file
+- Add STM32 log sinks: `LOG_SINK_UART`, `LOG_SINK_ITM` (GCC, `_write` retarget)
+- Require explicit `UCUTILS_UART_HANDLE` for UART sink (set in consumer project CMake)
+- Expand README with integration tutorials for host, ARM, submodule, and manual use
 
 ### v0.1.0
 
