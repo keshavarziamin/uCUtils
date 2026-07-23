@@ -58,7 +58,7 @@ extern "C" {
 #endif
 
 #ifndef UCUTILS_UART_HANDLE
-#define UCUTILS_UART_HANDLE huart2
+#error "UART log sink requires UCUTILS_UART_HANDLE (e.g. huart1). Set it in your project root CMake: target_compile_definitions(my_app PRIVATE UCUTILS_UART_HANDLE=huart1)"
 #endif
 
 extern UART_HandleTypeDef UCUTILS_UART_HANDLE;
@@ -72,7 +72,7 @@ static inline int ucutils_log_backend_write(char *ptr, int len) {
 #elif (UCUTILS_LOG_SINK == LOG_SINK_ITM)
 
 #ifndef __CORTEX_M
-#error "STM32 ITM log sink: include CMSIS core header (e.g. core_cm4.h) before ucutils/logging.h"
+#error "STM32 ITM log sink: include a CMSIS core header before ucutils/logging.h"
 #endif
 
 static inline int ucutils_log_backend_write(char *ptr, int len) {
