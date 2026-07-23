@@ -58,7 +58,7 @@ extern "C" {
 #endif
 
 #ifndef UCUTILS_UART_HANDLE
-#define UCUTILS_UART_HANDLE huart1
+#define UCUTILS_UART_HANDLE huart2
 #endif
 
 extern UART_HandleTypeDef UCUTILS_UART_HANDLE;

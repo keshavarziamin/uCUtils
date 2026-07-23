@@ -45,18 +45,11 @@ install(FILES
     DESTINATION lib/cmake/UCUtils
 )
 
-option(UCUTILS_BUILD_TESTS "Build UCUtils compile tests" ON)
+option(UCUTILS_BUILD_TESTS "Build UCUtils compile tests" OFF)
 option(UCUTILS_BUILD_EXAMPLES "Build UCUtils examples" OFF)
 
-set(UCUTILS_PROJECT_TARGET "PROJECT_TARGET_HOST" CACHE STRING
-    "Target platform: PROJECT_TARGET_HOST or PROJECT_TARGET_STM32")
-set(UCUTILS_LOG_SINK "LOG_SINK_STDIO" CACHE STRING
-    "Log sink: LOG_SINK_STDIO, LOG_SINK_UART, or LOG_SINK_ITM")
 
-target_compile_definitions(ucutils INTERFACE
-    UCUTILS_PROJECT_TARGET=${UCUTILS_PROJECT_TARGET}
-    UCUTILS_LOG_SINK=${UCUTILS_LOG_SINK}
-)
+
 
 if(UCUTILS_BUILD_TESTS)
     enable_testing()
